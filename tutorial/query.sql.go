@@ -9,6 +9,16 @@ import (
 	"context"
 )
 
+const checkEmail = `-- name: CheckEmail :one
+SELECT email FROM public.users WHERE email = $1
+`
+
+func (q *Queries) CheckEmail(ctx context.Context, email string) (string, error) {
+	row := q.db.QueryRow(ctx, checkEmail, email)
+	err := row.Scan(&email)
+	return email, err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO public.users (firstname, lastname, email, password)
 VALUES ($1, $2, $3, $4)

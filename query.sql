@@ -8,6 +8,10 @@ SELECT id, firstname, lastname, email, password
 FROM users
 WHERE email = $1;
 
+-- name: CheckEmail :one
+SELECT email FROM public.users WHERE email = $1;
+
+
 
 
 
