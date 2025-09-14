@@ -1,25 +1,77 @@
 package handler
 
 import (
+	reqres "Pet_service_backend/req-res"
 	"Pet_service_backend/tutorial"
 	"Pet_service_backend/utils"
+	"regexp"
+	"unicode"
 
 	"github.com/gofiber/fiber/v2"
 )
 
-type RegisterReq struct {
-	Firstname string `json:"first_name"`
-	Lastname  string `json:"lastname"`
-	Email     string `json:"email"`
-	Password  string `json:"password"`
+func passwordValidation(s string) bool {
+	var (
+		hasMinLen  = false
+		hasUpper   = false
+		hasLower   = false
+		hasNumber  = false
+		hasSpecial = false
+	)
+	if len(s) >= 12 {
+		hasMinLen = true
+	}
+	for _, char := range s {
+		switch {
+		case unicode.IsUpper(char):
+			hasUpper = true
+		case unicode.IsLower(char):
+			hasLower = true
+		case unicode.IsNumber(char):
+			hasNumber = true
+		case unicode.IsPunct(char) || unicode.IsSymbol(char):
+			hasSpecial = true
+		}
+	}
+	return hasMinLen && hasUpper && hasLower && hasNumber && hasSpecial
+}
+
+func emailValidation(e string) bool {
+	emailRegex := regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,4}$`)
+	return emailRegex.MatchString(e)
 }
 
 func Register(queries *tutorial.Queries) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		var req RegisterReq
+		var req reqres.RegisterReq
 		if err := c.BodyParser(&req); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"message": "invalid request body",
+			})
+		}
+
+		if req.Password == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": "please enter your password",
+			})
+		}
+
+		if !passwordValidation(req.Password) {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": "please enter valid password",
+			})
+		}
+
+		if !emailValidation(req.Email) {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": "please enter valid email",
+			})
+		}
+
+		dbEmail, err := queries.CheckEmail(c.Context(), req.Email)
+		if err == nil && req.Email == dbEmail {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "email already exists",
 			})
 		}
 
@@ -40,14 +92,9 @@ func Register(queries *tutorial.Queries) fiber.Handler {
 	}
 }
 
-type LoginReq struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
 func Login(queries *tutorial.Queries) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		var req LoginReq
+		var req reqres.LoginReq
 		if err := c.BodyParser(&req); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"message": "invalid login request",
@@ -74,9 +121,9 @@ func Login(queries *tutorial.Queries) fiber.Handler {
 			})
 		}
 
-		return c.JSON(fiber.Map{
-			"email": user.Email,
-			"token": token,
+		return c.JSON(reqres.LoginResponse{
+			Email: user.Email,
+			Token: token,
 		})
 	}
 }
