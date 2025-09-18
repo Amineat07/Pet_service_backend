@@ -1,10 +1,11 @@
 package handler
 
 import (
+	"Pet_service_backend/db"
 	reqres "Pet_service_backend/req-res"
-	"Pet_service_backend/tutorial"
 	"Pet_service_backend/utils"
 	"regexp"
+	"time"
 	"unicode"
 
 	"github.com/gofiber/fiber/v2"
@@ -41,7 +42,7 @@ func emailValidation(e string) bool {
 	return emailRegex.MatchString(e)
 }
 
-func Register(queries *tutorial.Queries) fiber.Handler {
+func Register(queries *db.Queries) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		var req reqres.RegisterReq
 		if err := c.BodyParser(&req); err != nil {
@@ -68,6 +69,12 @@ func Register(queries *tutorial.Queries) fiber.Handler {
 			})
 		}
 
+		if req.IsCustomer == true && req.IsServiceProvider == true {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": "You must choose one role only: Customer or Service Provider. Please make sure your selection is correct.",
+			})
+		}
+
 		dbEmail, err := queries.CheckEmail(c.Context(), req.Email)
 		if err == nil && req.Email == dbEmail {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -75,11 +82,13 @@ func Register(queries *tutorial.Queries) fiber.Handler {
 			})
 		}
 
-		user, err := queries.CreateUser(c.Context(), tutorial.CreateUserParams{
-			Firstname: req.Firstname,
-			Lastname:  req.Lastname,
-			Email:     req.Email,
-			Password:  utils.GeneratePassword(req.Password),
+		user, err := queries.CreateUser(c.Context(), db.CreateUserParams{
+			Firstname:         req.Firstname,
+			Lastname:          req.Lastname,
+			Email:             req.Email,
+			Iscustomer:        req.IsCustomer,
+			Isserviceprovider: req.IsServiceProvider,
+			Password:          utils.GeneratePassword(req.Password),
 		})
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -92,7 +101,7 @@ func Register(queries *tutorial.Queries) fiber.Handler {
 	}
 }
 
-func Login(queries *tutorial.Queries) fiber.Handler {
+func Login(queries *db.Queries) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		var req reqres.LoginReq
 		if err := c.BodyParser(&req); err != nil {
@@ -108,22 +117,42 @@ func Login(queries *tutorial.Queries) fiber.Handler {
 			})
 		}
 
+		var role string
+		if user.Isadmin {
+			role = "admin"
+		} else if user.Iscustomer {
+			role = "customer"
+		} else if user.Isserviceprovider {
+			role = "provider"
+		}
+
 		if !utils.ComparePassword(user.Password, req.Password) {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"message": "invalid email or password",
 			})
 		}
 
-		token, err := utils.GenerateToken(uint(user.ID))
+		token, err := utils.GenerateToken(uint(user.ID), role)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"message": "failed to generate token",
 			})
 		}
 
+		c.Cookie(&fiber.Cookie{
+			Name:     "jwt",
+			Value:    token,
+			Expires:  time.Now().Add(24 * time.Hour),
+			HTTPOnly: true,
+			Secure:   true,
+			SameSite: "Strict",
+		})
+
 		return c.JSON(reqres.LoginResponse{
-			Email: user.Email,
-			Token: token,
+			Firstname: user.Firstname,
+			Lastname:  user.Lastname,
+			Email:     user.Email,
+			Token:     token,
 		})
 	}
 }
