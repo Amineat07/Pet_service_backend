@@ -2,14 +2,17 @@ package utils
 
 import (
 	"os"
+	"strconv"
 	"time"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"
 )
 
-func GenerateToken(id uint) (string, error) {
+func GenerateToken(id uint, role string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": id,
+		"role":    role,
 		"exp":     jwt.NewNumericDate(time.Now().Add(72 * time.Hour)),
 	})
 
@@ -19,4 +22,52 @@ func GenerateToken(id uint) (string, error) {
 	}
 
 	return t, nil
+}
+
+func JWTMiddleware(secret []byte) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		tokenStr := c.Cookies("jwt")
+		if tokenStr == "" {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"message": "missing token",
+			})
+		}
+
+		token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
+			return secret, nil
+		})
+		if err != nil || !token.Valid {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"message": "invalid token",
+			})
+		}
+
+		claims := token.Claims.(jwt.MapClaims)
+
+		var userID int64
+		switch id := claims["user_id"].(type) {
+		case float64:
+			userID = int64(id)
+		case string:
+			v, err := strconv.ParseInt(id, 10, 64)
+			if err != nil {
+				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+					"message": "invalid user_id in token",
+				})
+			}
+			userID = v
+		default:
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"message": "invalid user_id in token",
+			})
+		}
+
+		c.Locals("user_id", userID)
+
+		if role, ok := claims["role"].(string); ok {
+			c.Locals("role", role)
+		}
+
+		return c.Next()
+	}
 }

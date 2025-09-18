@@ -1,0 +1,24 @@
+package handler
+
+import (
+	"Pet_service_backend/db"
+	"Pet_service_backend/utils"
+	"os"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+func SetupRoute(app *fiber.App, con *pgxpool.Pool) {
+	queries := db.New(con)
+
+	auth := app.Group("/auth")
+	auth.Post("/register", Register(queries))
+	auth.Post("/login", Login(queries))
+
+	
+	service := app.Group("/service")
+	service.Use(utils.JWTMiddleware([]byte(os.Getenv("JWT_SECRET"))))
+	service.Post("/addservice", AddService(queries))
+
+}
