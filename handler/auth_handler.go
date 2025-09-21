@@ -2,7 +2,7 @@ package handler
 
 import (
 	"Pet_service_backend/db"
-	reqres "Pet_service_backend/req-res"
+	requestresponse "Pet_service_backend/request_response"
 	"Pet_service_backend/utils"
 	"regexp"
 	"time"
@@ -44,7 +44,7 @@ func emailValidation(e string) bool {
 
 func Register(queries *db.Queries) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		var req reqres.RegisterReq
+		var req requestresponse.RegisterReq
 		if err := c.BodyParser(&req); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"message": "invalid request body",
@@ -103,7 +103,7 @@ func Register(queries *db.Queries) fiber.Handler {
 
 func Login(queries *db.Queries) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		var req reqres.LoginReq
+		var req requestresponse.LoginReq
 		if err := c.BodyParser(&req); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"message": "invalid login request",
@@ -148,7 +148,7 @@ func Login(queries *db.Queries) fiber.Handler {
 			SameSite: "Strict",
 		})
 
-		return c.JSON(reqres.LoginResponse{
+		return c.JSON(requestresponse.LoginResponse{
 			Firstname: user.Firstname,
 			Lastname:  user.Lastname,
 			Email:     user.Email,

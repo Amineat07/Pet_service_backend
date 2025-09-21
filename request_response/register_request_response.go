@@ -1,4 +1,4 @@
-package reqres
+package requestresponse
 
 type RegisterReq struct {
 	Firstname         string `json:"first_name"`

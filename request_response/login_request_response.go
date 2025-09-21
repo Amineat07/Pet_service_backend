@@ -1,4 +1,4 @@
-package reqres
+package requestresponse
 
 type LoginReq struct {
 	Email    string `json:"email"`

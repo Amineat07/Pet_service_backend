@@ -8,6 +8,12 @@ SELECT id, firstname, lastname, email, password,isCustomer,isServiceProvider,isA
 FROM users
 WHERE email = $1;
 
+-- name: GetUserById :one
+SELECT *
+FROM public.users
+WHERE id = $1;
+
+
 -- name: GetRolebyID :one
 SELECT id, isAdmin, isCustomer, isServiceProvider
 FROM users
@@ -31,12 +37,24 @@ SET pet_sitting  = EXCLUDED.pet_sitting,
     pet_massage  = EXCLUDED.pet_massage
 RETURNING *;
 
+-- name: GetServices :many
+SELECT * FROM public.services;
 
--- name: GetServicesByProvider :one
-SELECT provider_id, pet_sitting, dog_walking, pet_day_care, pet_grooming, pet_training, pet_massage
-FROM public.services
-WHERE provider_id = $1;
+-- name: GetServiceByProviderID :one
+SELECT * FROM public.services WHERE provider_id = $1;
 
+-- name: UpdateServices :exec
+UPDATE public.services SET pet_sitting = $2 ,dog_walking= $3,pet_day_care=$4,pet_grooming=$5,pet_training=$6,pet_massage=$7
+WHERE provider_id =$1; 
+
+-- name: UpdateUser :exec
+UPDATE public.users SET firstname=$2,lastname=$3,email=$4,password=$5
+WHERE id=$1;
+
+-- name: DeleteUser :exec
+DELETE FROM public.users
+WHERE id=$1
+RETURNING id;
 
 
 
