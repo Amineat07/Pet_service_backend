@@ -68,6 +68,17 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 	return i, err
 }
 
+const deleteUser = `-- name: DeleteUser :exec
+DELETE FROM public.users
+WHERE id=$1
+RETURNING id
+`
+
+func (q *Queries) DeleteUser(ctx context.Context, id int64) error {
+	_, err := q.db.Exec(ctx, deleteUser, id)
+	return err
+}
+
 const getRolebyID = `-- name: GetRolebyID :one
 SELECT id, isAdmin, isCustomer, isServiceProvider
 FROM users
@@ -93,14 +104,12 @@ func (q *Queries) GetRolebyID(ctx context.Context, id int64) (GetRolebyIDRow, er
 	return i, err
 }
 
-const getServicesByProvider = `-- name: GetServicesByProvider :one
-SELECT provider_id, pet_sitting, dog_walking, pet_day_care, pet_grooming, pet_training, pet_massage
-FROM public.services
-WHERE provider_id = $1
+const getServiceByProviderID = `-- name: GetServiceByProviderID :one
+SELECT provider_id, pet_sitting, dog_walking, pet_day_care, pet_grooming, pet_training, pet_massage FROM public.services WHERE provider_id = $1
 `
 
-func (q *Queries) GetServicesByProvider(ctx context.Context, providerID int64) (Service, error) {
-	row := q.db.QueryRow(ctx, getServicesByProvider, providerID)
+func (q *Queries) GetServiceByProviderID(ctx context.Context, providerID int64) (Service, error) {
+	row := q.db.QueryRow(ctx, getServiceByProviderID, providerID)
 	var i Service
 	err := row.Scan(
 		&i.ProviderID,
@@ -112,6 +121,38 @@ func (q *Queries) GetServicesByProvider(ctx context.Context, providerID int64) (
 		&i.PetMassage,
 	)
 	return i, err
+}
+
+const getServices = `-- name: GetServices :many
+SELECT provider_id, pet_sitting, dog_walking, pet_day_care, pet_grooming, pet_training, pet_massage FROM public.services
+`
+
+func (q *Queries) GetServices(ctx context.Context) ([]Service, error) {
+	rows, err := q.db.Query(ctx, getServices)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Service
+	for rows.Next() {
+		var i Service
+		if err := rows.Scan(
+			&i.ProviderID,
+			&i.PetSitting,
+			&i.DogWalking,
+			&i.PetDayCare,
+			&i.PetGrooming,
+			&i.PetTraining,
+			&i.PetMassage,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
@@ -145,6 +186,80 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 		&i.Isadmin,
 	)
 	return i, err
+}
+
+const getUserById = `-- name: GetUserById :one
+SELECT id, firstname, lastname, email, iscustomer, isserviceprovider, isadmin, password
+FROM public.users
+WHERE id = $1
+`
+
+func (q *Queries) GetUserById(ctx context.Context, id int64) (User, error) {
+	row := q.db.QueryRow(ctx, getUserById, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Firstname,
+		&i.Lastname,
+		&i.Email,
+		&i.Iscustomer,
+		&i.Isserviceprovider,
+		&i.Isadmin,
+		&i.Password,
+	)
+	return i, err
+}
+
+const updateServices = `-- name: UpdateServices :exec
+UPDATE public.services SET pet_sitting = $2 ,dog_walking= $3,pet_day_care=$4,pet_grooming=$5,pet_training=$6,pet_massage=$7
+WHERE provider_id =$1
+`
+
+type UpdateServicesParams struct {
+	ProviderID  int64
+	PetSitting  bool
+	DogWalking  bool
+	PetDayCare  bool
+	PetGrooming bool
+	PetTraining bool
+	PetMassage  bool
+}
+
+func (q *Queries) UpdateServices(ctx context.Context, arg UpdateServicesParams) error {
+	_, err := q.db.Exec(ctx, updateServices,
+		arg.ProviderID,
+		arg.PetSitting,
+		arg.DogWalking,
+		arg.PetDayCare,
+		arg.PetGrooming,
+		arg.PetTraining,
+		arg.PetMassage,
+	)
+	return err
+}
+
+const updateUser = `-- name: UpdateUser :exec
+UPDATE public.users SET firstname=$2,lastname=$3,email=$4,password=$5
+WHERE id=$1
+`
+
+type UpdateUserParams struct {
+	ID        int64
+	Firstname string
+	Lastname  string
+	Email     string
+	Password  string
+}
+
+func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) error {
+	_, err := q.db.Exec(ctx, updateUser,
+		arg.ID,
+		arg.Firstname,
+		arg.Lastname,
+		arg.Email,
+		arg.Password,
+	)
+	return err
 }
 
 const upsertServices = `-- name: UpsertServices :one
