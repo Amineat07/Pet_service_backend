@@ -25,7 +25,9 @@ func SetupRoute(app *fiber.App, con *pgxpool.Pool) {
 
 	user := app.Group("/user")
 	user.Use(utils.JWTMiddleware([]byte(os.Getenv("JWT_SECRET"))))
+	user.Get("/users", GetUsers(queries))
 	user.Patch("/user", UpdateUser(queries))
 	user.Delete("/user", DeleteUser(queries))
+	user.Get("/providers", GetProvider(queries))
 
 }

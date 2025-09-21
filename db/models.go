@@ -4,6 +4,10 @@
 
 package db
 
+import (
+	"github.com/jackc/pgx/v5/pgtype"
+)
+
 type Service struct {
 	ProviderID  int64
 	PetSitting  bool
@@ -23,4 +27,6 @@ type User struct {
 	Isserviceprovider bool
 	Isadmin           bool
 	Password          string
+	CreatedAt         pgtype.Timestamptz
+	UpdatedAt         pgtype.Timestamptz
 }

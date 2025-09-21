@@ -6,7 +6,9 @@ CREATE TABLE public.users (
   isCustomer       BOOLEAN    NOT NULL,
   isServiceProvider BOOLEAN   NOT NULL,
   isAdmin BOOLEAN NOT NULL,
-  password         TEXT       NOT NULL
+  password         TEXT       NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE public.services (

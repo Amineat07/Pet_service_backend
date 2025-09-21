@@ -68,15 +68,58 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 	return i, err
 }
 
+const deleteServices = `-- name: DeleteServices :exec
+DELETE FROM public.services WHERE provider_id = $1
+`
+
+func (q *Queries) DeleteServices(ctx context.Context, providerID int64) error {
+	_, err := q.db.Exec(ctx, deleteServices, providerID)
+	return err
+}
+
 const deleteUser = `-- name: DeleteUser :exec
 DELETE FROM public.users
-WHERE id=$1
-RETURNING id
+WHERE id = $1
 `
 
 func (q *Queries) DeleteUser(ctx context.Context, id int64) error {
 	_, err := q.db.Exec(ctx, deleteUser, id)
 	return err
+}
+
+const getProviders = `-- name: GetProviders :many
+SELECT id, firstname, lastname, email, iscustomer, isserviceprovider, isadmin, password, created_at, updated_at FROM users WHERE isServiceProvider = true
+`
+
+func (q *Queries) GetProviders(ctx context.Context) ([]User, error) {
+	rows, err := q.db.Query(ctx, getProviders)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Firstname,
+			&i.Lastname,
+			&i.Email,
+			&i.Iscustomer,
+			&i.Isserviceprovider,
+			&i.Isadmin,
+			&i.Password,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getRolebyID = `-- name: GetRolebyID :one
@@ -189,7 +232,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 }
 
 const getUserById = `-- name: GetUserById :one
-SELECT id, firstname, lastname, email, iscustomer, isserviceprovider, isadmin, password
+SELECT id, firstname, lastname, email, iscustomer, isserviceprovider, isadmin, password, created_at, updated_at
 FROM public.users
 WHERE id = $1
 `
@@ -206,8 +249,45 @@ func (q *Queries) GetUserById(ctx context.Context, id int64) (User, error) {
 		&i.Isserviceprovider,
 		&i.Isadmin,
 		&i.Password,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const getUsers = `-- name: GetUsers :many
+SELECT id, firstname, lastname, email, iscustomer, isserviceprovider, isadmin, password, created_at, updated_at FROM public.users
+`
+
+func (q *Queries) GetUsers(ctx context.Context) ([]User, error) {
+	rows, err := q.db.Query(ctx, getUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Firstname,
+			&i.Lastname,
+			&i.Email,
+			&i.Iscustomer,
+			&i.Isserviceprovider,
+			&i.Isadmin,
+			&i.Password,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updateServices = `-- name: UpdateServices :exec
@@ -239,7 +319,7 @@ func (q *Queries) UpdateServices(ctx context.Context, arg UpdateServicesParams) 
 }
 
 const updateUser = `-- name: UpdateUser :exec
-UPDATE public.users SET firstname=$2,lastname=$3,email=$4,password=$5
+UPDATE public.users SET firstname=$2,lastname=$3,email=$4,password=$5,updated_at = now()
 WHERE id=$1
 `
 

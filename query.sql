@@ -13,6 +13,22 @@ SELECT *
 FROM public.users
 WHERE id = $1;
 
+-- name: GetUsers :many
+SELECT * FROM public.users;
+
+-- name: UpdateUser :exec
+UPDATE public.users SET firstname=$2,lastname=$3,email=$4,password=$5,updated_at = now()
+WHERE id=$1;
+
+-- name: DeleteUser :exec
+DELETE FROM public.users
+WHERE id = $1;
+
+-- name: DeleteServices :exec
+DELETE FROM public.services WHERE provider_id = $1;
+
+-- name: GetProviders :many
+SELECT * FROM users WHERE isServiceProvider = true;
 
 -- name: GetRolebyID :one
 SELECT id, isAdmin, isCustomer, isServiceProvider
@@ -47,14 +63,7 @@ SELECT * FROM public.services WHERE provider_id = $1;
 UPDATE public.services SET pet_sitting = $2 ,dog_walking= $3,pet_day_care=$4,pet_grooming=$5,pet_training=$6,pet_massage=$7
 WHERE provider_id =$1; 
 
--- name: UpdateUser :exec
-UPDATE public.users SET firstname=$2,lastname=$3,email=$4,password=$5
-WHERE id=$1;
 
--- name: DeleteUser :exec
-DELETE FROM public.users
-WHERE id=$1
-RETURNING id;
 
 
 
