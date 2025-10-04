@@ -13,7 +13,25 @@ import (
 
 func GetUsers(queries *db.Queries) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		dbusers, err := queries.GetUsers(c.Context())
+
+		limit := c.QueryInt("limit", 10)
+		page := c.QueryInt("page", 1)
+
+		if limit <= 0 {
+			limit = 10
+		}
+		if page <= 0 {
+			page = 1
+		}
+
+		offset := (page - 1) * limit
+
+		params := db.GetUsersParams{
+			Limit:  int32(limit),
+			Offset: int32(offset),
+		}
+
+		dbusers, err := queries.GetUsers(c.Context(), params)
 		if err != nil {
 			return c.SendStatus(fiber.StatusInternalServerError)
 		}
@@ -29,7 +47,11 @@ func GetUsers(queries *db.Queries) fiber.Handler {
 				Created_At: u.CreatedAt.Time,
 			}
 		}
-		return c.JSON(users)
+		return c.JSON(fiber.Map{
+			"page":  page,
+			"limit": limit,
+			"users": users,
+		})
 	}
 }
 
@@ -43,7 +65,23 @@ func GetProvider(queries *db.Queries) fiber.Handler {
 			})
 		}
 
-		providersdb, err := queries.GetProviders(c.Context())
+		limit := c.QueryInt("limit", 10)
+		page := c.QueryInt("page", 1)
+
+		if limit <= 0 {
+			limit = 10
+		}
+		if page <= 0 {
+			page = 0
+		}
+
+		offset := (page - 1) * limit
+
+		params := db.GetProvidersParams{
+			Limit:  int32(limit),
+			Offset: int32(offset),
+		}
+		providersdb, err := queries.GetProviders(c.Context(), params)
 		if err != nil {
 			fmt.Printf("GetProviders error: %v\n", err) // Error Debuging
 			return c.SendStatus(fiber.StatusInternalServerError)

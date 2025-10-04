@@ -7,6 +7,8 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const checkEmail = `-- name: CheckEmail :one
@@ -88,11 +90,16 @@ func (q *Queries) DeleteUser(ctx context.Context, id int64) error {
 }
 
 const getProviders = `-- name: GetProviders :many
-SELECT id, firstname, lastname, email, iscustomer, isserviceprovider, isadmin, password, created_at, updated_at FROM users WHERE isServiceProvider = true
+SELECT id, firstname, lastname, email, iscustomer, isserviceprovider, isadmin, password, created_at, updated_at FROM users WHERE isServiceProvider = true LIMIT $1 OFFSET $2
 `
 
-func (q *Queries) GetProviders(ctx context.Context) ([]User, error) {
-	rows, err := q.db.Query(ctx, getProviders)
+type GetProvidersParams struct {
+	Limit  int32
+	Offset int32
+}
+
+func (q *Queries) GetProviders(ctx context.Context, arg GetProvidersParams) ([]User, error) {
+	rows, err := q.db.Query(ctx, getProviders, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -256,11 +263,18 @@ func (q *Queries) GetUserById(ctx context.Context, id int64) (User, error) {
 }
 
 const getUsers = `-- name: GetUsers :many
-SELECT id, firstname, lastname, email, iscustomer, isserviceprovider, isadmin, password, created_at, updated_at FROM public.users
+SELECT id, firstname, lastname, email, iscustomer, isserviceprovider, isadmin, password, created_at, updated_at FROM public.users 
+ORDER BY created_at DESC
+LIMIT $1 OFFSET $2
 `
 
-func (q *Queries) GetUsers(ctx context.Context) ([]User, error) {
-	rows, err := q.db.Query(ctx, getUsers)
+type GetUsersParams struct {
+	Limit  int32
+	Offset int32
+}
+
+func (q *Queries) GetUsers(ctx context.Context, arg GetUsersParams) ([]User, error) {
+	rows, err := q.db.Query(ctx, getUsers, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -288,6 +302,47 @@ func (q *Queries) GetUsers(ctx context.Context) ([]User, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const makeReservation = `-- name: MakeReservation :one
+INSERT INTO public.booked_service (customer_id, provider_id, service_type, start_time, end_time)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING customer_id, provider_id,service_type,start_time,end_time
+`
+
+type MakeReservationParams struct {
+	CustomerID  int64
+	ProviderID  int64
+	ServiceType string
+	StartTime   pgtype.Timestamptz
+	EndTime     pgtype.Timestamptz
+}
+
+type MakeReservationRow struct {
+	CustomerID  int64
+	ProviderID  int64
+	ServiceType string
+	StartTime   pgtype.Timestamptz
+	EndTime     pgtype.Timestamptz
+}
+
+func (q *Queries) MakeReservation(ctx context.Context, arg MakeReservationParams) (MakeReservationRow, error) {
+	row := q.db.QueryRow(ctx, makeReservation,
+		arg.CustomerID,
+		arg.ProviderID,
+		arg.ServiceType,
+		arg.StartTime,
+		arg.EndTime,
+	)
+	var i MakeReservationRow
+	err := row.Scan(
+		&i.CustomerID,
+		&i.ProviderID,
+		&i.ServiceType,
+		&i.StartTime,
+		&i.EndTime,
+	)
+	return i, err
 }
 
 const updateServices = `-- name: UpdateServices :exec

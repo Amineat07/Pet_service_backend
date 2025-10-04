@@ -8,6 +8,18 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type BookedService struct {
+	ID          int64
+	CustomerID  int64
+	ProviderID  int64
+	ServiceType string
+	StartTime   pgtype.Timestamptz
+	EndTime     pgtype.Timestamptz
+	Status      string
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
 type Service struct {
 	ProviderID  int64
 	PetSitting  bool

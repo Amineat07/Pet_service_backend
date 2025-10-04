@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"Pet_service_backend/db"
 	"os"
 	"strconv"
 	"time"
@@ -24,7 +25,7 @@ func GenerateToken(id uint, role string) (string, error) {
 	return t, nil
 }
 
-func JWTMiddleware(secret []byte) fiber.Handler {
+func JWTMiddleware(secret []byte, queries *db.Queries) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		tokenStr := c.Cookies("jwt")
 		if tokenStr == "" {
@@ -62,12 +63,18 @@ func JWTMiddleware(secret []byte) fiber.Handler {
 			})
 		}
 
-		c.Locals("user_id", userID)
+		user, err := queries.GetUserById(c.UserContext(), userID)
+		if err != nil {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"message": "user not found or deleted",
+			})
+		}
+
+		c.Locals("user_id", user.ID)
 
 		if role, ok := claims["role"].(string); ok {
 			c.Locals("role", role)
 		}
-
 		return c.Next()
 	}
 }
