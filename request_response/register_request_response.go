@@ -3,11 +3,11 @@ package requestresponse
 import "time"
 
 type RegisterReq struct {
-	Firstname         string `json:"first_name"`
-	Lastname          string `json:"lastname"`
-	Email             string `json:"email"`
-	Password          string `json:"password"`
-	IsCustomer        bool   `json:"is_customer"`
-	IsServiceProvider bool   `json:"is_service_provider"`
-	CreatedAt time.Time
+	Firstname         string `json:"first_Name" validate:"required"`
+	Lastname          string `json:"last_Name" validate:"required"`
+	Email             string `json:"email" validate:"required"`
+	Password          string `json:"password" validate:"required"`
+	IsCustomer        *bool   `json:"is_Customer" validate:"required"`
+	IsServiceProvider *bool   `json:"is_Service_Provider" validate:"required"`
+	CreatedAt         time.Time
 }

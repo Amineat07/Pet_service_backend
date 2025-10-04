@@ -14,7 +14,9 @@ FROM public.users
 WHERE id = $1;
 
 -- name: GetUsers :many
-SELECT * FROM public.users;
+SELECT * FROM public.users 
+ORDER BY created_at DESC
+LIMIT $1 OFFSET $2;;
 
 -- name: UpdateUser :exec
 UPDATE public.users SET firstname=$2,lastname=$3,email=$4,password=$5,updated_at = now()
@@ -28,7 +30,7 @@ WHERE id = $1;
 DELETE FROM public.services WHERE provider_id = $1;
 
 -- name: GetProviders :many
-SELECT * FROM users WHERE isServiceProvider = true;
+SELECT * FROM users WHERE isServiceProvider = true LIMIT $1 OFFSET $2;
 
 -- name: GetRolebyID :one
 SELECT id, isAdmin, isCustomer, isServiceProvider
@@ -62,6 +64,11 @@ SELECT * FROM public.services WHERE provider_id = $1;
 -- name: UpdateServices :exec
 UPDATE public.services SET pet_sitting = $2 ,dog_walking= $3,pet_day_care=$4,pet_grooming=$5,pet_training=$6,pet_massage=$7
 WHERE provider_id =$1; 
+
+-- name: MakeReservation :one
+INSERT INTO public.booked_service (customer_id, provider_id, service_type, start_time, end_time)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING customer_id, provider_id, service_type, start_time, end_time;
 
 
 

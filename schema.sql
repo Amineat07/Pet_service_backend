@@ -21,5 +21,16 @@ CREATE TABLE public.services (
     pet_massage BOOLEAN NOT NULL DEFAULT false
 );
 
+CREATE TABLE public.booked_service (
+    id BIGSERIAL PRIMARY KEY,
+    customer_id BIGINT NOT NULL REFERENCES public.users(id),
+    provider_id BIGINT NOT NULL REFERENCES public.users(id),
+    service_type TEXT NOT NULL,
+    start_time TIMESTAMPTZ NOT NULL,
+    end_time TIMESTAMPTZ NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
 
