@@ -33,5 +33,9 @@ func SetupRoute(app *fiber.App, con *pgxpool.Pool) {
 	reservation := app.Group("/reservation")
 	reservation.Use(utils.JWTMiddleware([]byte(os.Getenv("JWT_SECRET")), queries))
 	reservation.Post("/", AddBooking(queries))
+	// reservation.Patch("/id", UpdateBooking(queries))
+	// reservation.Get("/",GetBookings(queries))
+	// reservation.Get("/:id", GetSingleBooking(queries))
+	// reservation.Delete("/:id", DeleteBooking(queries))
 
 }

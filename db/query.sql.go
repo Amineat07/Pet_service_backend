@@ -306,8 +306,16 @@ func (q *Queries) GetUsers(ctx context.Context, arg GetUsersParams) ([]User, err
 
 const makeReservation = `-- name: MakeReservation :one
 INSERT INTO public.booked_service (customer_id, provider_id, service_type, start_time, end_time)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING customer_id, provider_id,service_type,start_time,end_time
+SELECT $1, $2, $3, $4, $5
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM public.booked_service
+    WHERE customer_id = $1
+      AND service_type = $3
+      AND start_time < $5
+      AND end_time > $4
+)
+RETURNING id, customer_id, provider_id, service_type, start_time, end_time
 `
 
 type MakeReservationParams struct {
@@ -319,6 +327,7 @@ type MakeReservationParams struct {
 }
 
 type MakeReservationRow struct {
+	ID          int64
 	CustomerID  int64
 	ProviderID  int64
 	ServiceType string
@@ -336,6 +345,7 @@ func (q *Queries) MakeReservation(ctx context.Context, arg MakeReservationParams
 	)
 	var i MakeReservationRow
 	err := row.Scan(
+		&i.ID,
 		&i.CustomerID,
 		&i.ProviderID,
 		&i.ServiceType,
