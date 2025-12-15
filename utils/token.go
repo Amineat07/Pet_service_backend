@@ -4,6 +4,7 @@ import (
 	"Pet_service_backend/db"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -28,6 +29,14 @@ func GenerateToken(id uint, role string) (string, error) {
 func JWTMiddleware(secret []byte, queries *db.Queries) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		tokenStr := c.Cookies("jwt")
+
+		if tokenStr == "" {
+			authHeader := c.Get("Authorization")
+			if strings.HasPrefix(authHeader, "Bearer ") {
+				tokenStr = strings.TrimPrefix(authHeader, "Bearer ")
+			}
+		}
+
 		if tokenStr == "" {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"message": "missing token",
@@ -71,7 +80,6 @@ func JWTMiddleware(secret []byte, queries *db.Queries) fiber.Handler {
 		}
 
 		c.Locals("user_id", user.ID)
-
 		if role, ok := claims["role"].(string); ok {
 			c.Locals("role", role)
 		}

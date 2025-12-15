@@ -78,7 +78,46 @@ WHERE NOT EXISTS (
 )
 RETURNING id, customer_id, provider_id, service_type, start_time, end_time;
 
+-- name: GetProviderByID :one
+SELECT id
+FROM public.users
+WHERE id = $1 AND isServiceProvider=true;
 
+-- name: CountProviders :one
+SELECT COUNT(*) FROM public.users WHERE isServiceProvider = true;
+
+-- name: GetProviderService :one
+SELECT provider_id 
+FROM public.services
+WHERE provider_id = $1 AND pet_day_care= true OR pet_grooming = true OR pet_massage = true
+OR pet_sitting = true OR pet_training = true OR dog_walking = true;
+
+-- name: GetReservation :one
+SELECT * FROM public.booked_service WHERE id = $1;
+
+-- name: CheckReservationByCustomer :one
+SELECT * FROM public.booked_service WHERE customer_id= $1;
+
+-- name: GetReservationByIDAndCustomerID :one
+SELECT * FROM public.booked_service
+WHERE id = $1 AND provider_id = $2;
+
+-- name: GetServicesByProviderID :one
+SELECT *
+FROM public.services
+WHERE provider_id = $1;
+
+-- name: UpdateReservation :one
+UPDATE public.booked_service
+SET
+    service_type = COALESCE(NULLIF($2, ''), service_type),
+    start_time = COALESCE($3, start_time),
+    end_time = COALESCE($4, end_time)
+WHERE id = $1
+RETURNING *;
+
+-- name: DeleteReservation :exec
+DELETE FROM public.booked_service WHERE id=$1;
 
 
 

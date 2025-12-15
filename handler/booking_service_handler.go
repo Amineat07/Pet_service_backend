@@ -4,6 +4,8 @@ import (
 	"Pet_service_backend/db"
 	"database/sql"
 	"errors"
+	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -25,7 +27,7 @@ type BookingServiceResponse struct {
 	EndTime       time.Time `json:"end_time"`
 }
 
-func AddBooking(queries *db.Queries) fiber.Handler {
+func AddBookingService(queries *db.Queries) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		role, _ := c.Locals("role").(string)
 		if role != "customer" {
@@ -121,5 +123,147 @@ func AddBooking(queries *db.Queries) fiber.Handler {
 		}
 
 		return c.Status(fiber.StatusCreated).JSON(response)
+	}
+
+}
+
+type BookingServiceUpdateRequest struct {
+	StartTime   *time.Time `json:"start_time"`
+	EndTime     *time.Time `json:"end_time"`
+	ServiceType string     `json:"service_type"`
+}
+
+type BookingServiceUpdateResponse struct {
+	ServiceType string    `json:"service_type"`
+	StartTime   time.Time `json:"start_time"`
+	EndTime     time.Time `json:"end_time"`
+}
+
+func UpdateBookingService(queries *db.Queries) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		role, _ := c.Locals("role").(string)
+		if role != "customer" {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"message": "acces denied: only customer can make booking!",
+			})
+		}
+
+		var updateReq BookingServiceUpdateRequest
+		if err := c.BodyParser(&updateReq); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": "invalid request body",
+			})
+		}
+
+		if updateReq.StartTime == nil || updateReq.EndTime == nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": "start_time and end_time are required",
+			})
+		}
+
+		idStr := c.Params("id")
+		bookingID, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": "invalid booking id",
+			})
+		}
+
+		customerID, ok := c.Locals("user_id").(int64)
+		if !ok {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"message": "invalid user_id in token",
+			})
+		}
+
+		booking, err := queries.GetReservation(c.Context(), bookingID)
+		if err != nil {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"message": "booking not found",
+			})
+		}
+
+		if booking.CustomerID != customerID {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"message": "booking does not belong to user",
+			})
+		}
+
+		providerServices, err := queries.GetServicesByProviderID(c.Context(), booking.ProviderID)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"message": "failed to get provider services",
+			})
+		}
+
+		var allowed bool
+		switch updateReq.ServiceType {
+		case "pet_sitting":
+			allowed = providerServices.PetSitting
+		case "dog_walking":
+			allowed = providerServices.DogWalking
+		case "pet_day_care":
+			allowed = providerServices.PetDayCare
+		case "pet_grooming":
+			allowed = providerServices.PetGrooming
+		case "pet_training":
+			allowed = providerServices.PetTraining
+		case "pet_massage":
+			allowed = providerServices.PetMassage
+		default:
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": "invalid service type",
+			})
+		}
+
+		if !allowed {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": fmt.Sprintf("the provider does not offer the requested service: %s", updateReq.ServiceType),
+			})
+		}
+
+		updated, err := queries.UpdateReservation(c.Context(), db.UpdateReservationParams{
+			ID:        booking.ID,
+			Column2:   updateReq.ServiceType,
+			StartTime: pgtype.Timestamptz{Time: *updateReq.StartTime, Valid: true},
+			EndTime:   pgtype.Timestamptz{Time: *updateReq.EndTime, Valid: true},
+		})
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"message": "failed to update reservation",
+			})
+		}
+
+		return c.Status(fiber.StatusOK).JSON(&updated)
+	}
+}
+
+func DeleteReservation(queries *db.Queries) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		role, _ := c.Locals("role").(string)
+		if role != "customer" {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"message": "acces denied: only customer can make booking!",
+			})
+		}
+
+		idStr := c.Params("id")
+		bookingID, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": "invalid booking id",
+			})
+		}
+
+		if err := queries.DeleteReservation(c.Context(), bookingID); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"message": "failed to delete reservation",
+				"error":   err.Error(),
+			})
+		}
+
+		return c.JSON(fiber.Map{
+			"message": "Reservation deleted.",
+		})
 	}
 }

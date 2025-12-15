@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -87,6 +88,12 @@ func GetProvider(queries *db.Queries) fiber.Handler {
 			return c.SendStatus(fiber.StatusInternalServerError)
 		}
 
+		totalUsers, err := queries.CountProviders(c.Context())
+		if err != nil {
+			return c.SendStatus(fiber.StatusInternalServerError)
+		}
+		totalPages := int(math.Ceil(float64(totalUsers) / float64(limit)))
+
 		providers := make([]requestresponse.ProviderResponse, len(providersdb))
 		for i, u := range providersdb {
 			providers[i] = requestresponse.ProviderResponse{
@@ -97,7 +104,13 @@ func GetProvider(queries *db.Queries) fiber.Handler {
 				Created_At: u.CreatedAt.Time,
 			}
 		}
-		return c.JSON(providers)
+		return c.JSON(fiber.Map{
+			"page":       page,
+			"limit":      limit,
+			"totalPages": totalPages,
+			"providers":  providers,
+		})
+		
 	}
 }
 

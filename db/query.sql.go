@@ -21,6 +21,38 @@ func (q *Queries) CheckEmail(ctx context.Context, email string) (string, error) 
 	return email, err
 }
 
+const checkReservationByCustomer = `-- name: CheckReservationByCustomer :one
+SELECT id, customer_id, provider_id, service_type, start_time, end_time, status, created_at, updated_at FROM public.booked_service WHERE customer_id= $1
+`
+
+func (q *Queries) CheckReservationByCustomer(ctx context.Context, customerID int64) (BookedService, error) {
+	row := q.db.QueryRow(ctx, checkReservationByCustomer, customerID)
+	var i BookedService
+	err := row.Scan(
+		&i.ID,
+		&i.CustomerID,
+		&i.ProviderID,
+		&i.ServiceType,
+		&i.StartTime,
+		&i.EndTime,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const countProviders = `-- name: CountProviders :one
+SELECT COUNT(*) FROM public.users WHERE isServiceProvider = true
+`
+
+func (q *Queries) CountProviders(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countProviders)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO public.users (firstname, lastname, email, password, isCustomer, isServiceProvider,isAdmin)
 VALUES ($1, $2, $3, $4,$5,$6, $7)
@@ -70,6 +102,15 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 	return i, err
 }
 
+const deleteReservation = `-- name: DeleteReservation :exec
+DELETE FROM public.booked_service WHERE id=$1
+`
+
+func (q *Queries) DeleteReservation(ctx context.Context, id int64) error {
+	_, err := q.db.Exec(ctx, deleteReservation, id)
+	return err
+}
+
 const deleteServices = `-- name: DeleteServices :exec
 DELETE FROM public.services WHERE provider_id = $1
 `
@@ -87,6 +128,32 @@ WHERE id = $1
 func (q *Queries) DeleteUser(ctx context.Context, id int64) error {
 	_, err := q.db.Exec(ctx, deleteUser, id)
 	return err
+}
+
+const getProviderByID = `-- name: GetProviderByID :one
+SELECT id
+FROM public.users
+WHERE id = $1 AND isServiceProvider=true
+`
+
+func (q *Queries) GetProviderByID(ctx context.Context, id int64) (int64, error) {
+	row := q.db.QueryRow(ctx, getProviderByID, id)
+	err := row.Scan(&id)
+	return id, err
+}
+
+const getProviderService = `-- name: GetProviderService :one
+SELECT provider_id 
+FROM public.services
+WHERE provider_id = $1 AND pet_day_care= true OR pet_grooming = true OR pet_massage = true
+OR pet_sitting = true OR pet_training = true OR dog_walking = true
+`
+
+func (q *Queries) GetProviderService(ctx context.Context, providerID int64) (int64, error) {
+	row := q.db.QueryRow(ctx, getProviderService, providerID)
+	var provider_id int64
+	err := row.Scan(&provider_id)
+	return provider_id, err
 }
 
 const getProviders = `-- name: GetProviders :many
@@ -129,6 +196,54 @@ func (q *Queries) GetProviders(ctx context.Context, arg GetProvidersParams) ([]U
 	return items, nil
 }
 
+const getReservation = `-- name: GetReservation :one
+SELECT id, customer_id, provider_id, service_type, start_time, end_time, status, created_at, updated_at FROM public.booked_service WHERE id = $1
+`
+
+func (q *Queries) GetReservation(ctx context.Context, id int64) (BookedService, error) {
+	row := q.db.QueryRow(ctx, getReservation, id)
+	var i BookedService
+	err := row.Scan(
+		&i.ID,
+		&i.CustomerID,
+		&i.ProviderID,
+		&i.ServiceType,
+		&i.StartTime,
+		&i.EndTime,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getReservationByIDAndCustomerID = `-- name: GetReservationByIDAndCustomerID :one
+SELECT id, customer_id, provider_id, service_type, start_time, end_time, status, created_at, updated_at FROM public.booked_service
+WHERE id = $1 AND provider_id = $2
+`
+
+type GetReservationByIDAndCustomerIDParams struct {
+	ID         int64
+	ProviderID int64
+}
+
+func (q *Queries) GetReservationByIDAndCustomerID(ctx context.Context, arg GetReservationByIDAndCustomerIDParams) (BookedService, error) {
+	row := q.db.QueryRow(ctx, getReservationByIDAndCustomerID, arg.ID, arg.ProviderID)
+	var i BookedService
+	err := row.Scan(
+		&i.ID,
+		&i.CustomerID,
+		&i.ProviderID,
+		&i.ServiceType,
+		&i.StartTime,
+		&i.EndTime,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getRolebyID = `-- name: GetRolebyID :one
 SELECT id, isAdmin, isCustomer, isServiceProvider
 FROM users
@@ -155,7 +270,7 @@ func (q *Queries) GetRolebyID(ctx context.Context, id int64) (GetRolebyIDRow, er
 }
 
 const getServiceByProviderID = `-- name: GetServiceByProviderID :one
-SELECT provider_id, pet_sitting, dog_walking, pet_day_care, pet_grooming, pet_training, pet_massage FROM public.services WHERE provider_id = $1
+SELECT provider_id, pet_sitting, dog_walking, pet_day_care, pet_grooming, pet_training, pet_massage, pet_sitting_price, dog_walking_price, pet_day_care_price, pet_grooming_price, pet_training_price, pet_massage_price FROM public.services WHERE provider_id = $1
 `
 
 func (q *Queries) GetServiceByProviderID(ctx context.Context, providerID int64) (Service, error) {
@@ -169,12 +284,18 @@ func (q *Queries) GetServiceByProviderID(ctx context.Context, providerID int64) 
 		&i.PetGrooming,
 		&i.PetTraining,
 		&i.PetMassage,
+		&i.PetSittingPrice,
+		&i.DogWalkingPrice,
+		&i.PetDayCarePrice,
+		&i.PetGroomingPrice,
+		&i.PetTrainingPrice,
+		&i.PetMassagePrice,
 	)
 	return i, err
 }
 
 const getServices = `-- name: GetServices :many
-SELECT provider_id, pet_sitting, dog_walking, pet_day_care, pet_grooming, pet_training, pet_massage FROM public.services
+SELECT provider_id, pet_sitting, dog_walking, pet_day_care, pet_grooming, pet_training, pet_massage, pet_sitting_price, dog_walking_price, pet_day_care_price, pet_grooming_price, pet_training_price, pet_massage_price FROM public.services
 `
 
 func (q *Queries) GetServices(ctx context.Context) ([]Service, error) {
@@ -194,6 +315,12 @@ func (q *Queries) GetServices(ctx context.Context) ([]Service, error) {
 			&i.PetGrooming,
 			&i.PetTraining,
 			&i.PetMassage,
+			&i.PetSittingPrice,
+			&i.DogWalkingPrice,
+			&i.PetDayCarePrice,
+			&i.PetGroomingPrice,
+			&i.PetTrainingPrice,
+			&i.PetMassagePrice,
 		); err != nil {
 			return nil, err
 		}
@@ -203,6 +330,33 @@ func (q *Queries) GetServices(ctx context.Context) ([]Service, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const getServicesByProviderID = `-- name: GetServicesByProviderID :one
+SELECT provider_id, pet_sitting, dog_walking, pet_day_care, pet_grooming, pet_training, pet_massage, pet_sitting_price, dog_walking_price, pet_day_care_price, pet_grooming_price, pet_training_price, pet_massage_price
+FROM public.services
+WHERE provider_id = $1
+`
+
+func (q *Queries) GetServicesByProviderID(ctx context.Context, providerID int64) (Service, error) {
+	row := q.db.QueryRow(ctx, getServicesByProviderID, providerID)
+	var i Service
+	err := row.Scan(
+		&i.ProviderID,
+		&i.PetSitting,
+		&i.DogWalking,
+		&i.PetDayCare,
+		&i.PetGrooming,
+		&i.PetTraining,
+		&i.PetMassage,
+		&i.PetSittingPrice,
+		&i.DogWalkingPrice,
+		&i.PetDayCarePrice,
+		&i.PetGroomingPrice,
+		&i.PetTrainingPrice,
+		&i.PetMassagePrice,
+	)
+	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
@@ -355,6 +509,45 @@ func (q *Queries) MakeReservation(ctx context.Context, arg MakeReservationParams
 	return i, err
 }
 
+const updateReservation = `-- name: UpdateReservation :one
+UPDATE public.booked_service
+SET
+    service_type = COALESCE(NULLIF($2, ''), service_type),
+    start_time = COALESCE($3, start_time),
+    end_time = COALESCE($4, end_time)
+WHERE id = $1
+RETURNING id, customer_id, provider_id, service_type, start_time, end_time, status, created_at, updated_at
+`
+
+type UpdateReservationParams struct {
+	ID        int64
+	Column2   interface{}
+	StartTime pgtype.Timestamptz
+	EndTime   pgtype.Timestamptz
+}
+
+func (q *Queries) UpdateReservation(ctx context.Context, arg UpdateReservationParams) (BookedService, error) {
+	row := q.db.QueryRow(ctx, updateReservation,
+		arg.ID,
+		arg.Column2,
+		arg.StartTime,
+		arg.EndTime,
+	)
+	var i BookedService
+	err := row.Scan(
+		&i.ID,
+		&i.CustomerID,
+		&i.ProviderID,
+		&i.ServiceType,
+		&i.StartTime,
+		&i.EndTime,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const updateServices = `-- name: UpdateServices :exec
 UPDATE public.services SET pet_sitting = $2 ,dog_walking= $3,pet_day_care=$4,pet_grooming=$5,pet_training=$6,pet_massage=$7
 WHERE provider_id =$1
@@ -418,7 +611,7 @@ SET pet_sitting  = EXCLUDED.pet_sitting,
     pet_grooming = EXCLUDED.pet_grooming,
     pet_training = EXCLUDED.pet_training,
     pet_massage  = EXCLUDED.pet_massage
-RETURNING provider_id, pet_sitting, dog_walking, pet_day_care, pet_grooming, pet_training, pet_massage
+RETURNING provider_id, pet_sitting, dog_walking, pet_day_care, pet_grooming, pet_training, pet_massage, pet_sitting_price, dog_walking_price, pet_day_care_price, pet_grooming_price, pet_training_price, pet_massage_price
 `
 
 type UpsertServicesParams struct {
@@ -450,6 +643,12 @@ func (q *Queries) UpsertServices(ctx context.Context, arg UpsertServicesParams) 
 		&i.PetGrooming,
 		&i.PetTraining,
 		&i.PetMassage,
+		&i.PetSittingPrice,
+		&i.DogWalkingPrice,
+		&i.PetDayCarePrice,
+		&i.PetGroomingPrice,
+		&i.PetTrainingPrice,
+		&i.PetMassagePrice,
 	)
 	return i, err
 }

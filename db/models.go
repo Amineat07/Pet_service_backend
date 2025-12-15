@@ -21,13 +21,19 @@ type BookedService struct {
 }
 
 type Service struct {
-	ProviderID  int64
-	PetSitting  bool
-	DogWalking  bool
-	PetDayCare  bool
-	PetGrooming bool
-	PetTraining bool
-	PetMassage  bool
+	ProviderID       int64
+	PetSitting       bool
+	DogWalking       bool
+	PetDayCare       bool
+	PetGrooming      bool
+	PetTraining      bool
+	PetMassage       bool
+	PetSittingPrice  pgtype.Numeric
+	DogWalkingPrice  pgtype.Numeric
+	PetDayCarePrice  pgtype.Numeric
+	PetGroomingPrice pgtype.Numeric
+	PetTrainingPrice pgtype.Numeric
+	PetMassagePrice  pgtype.Numeric
 }
 
 type User struct {

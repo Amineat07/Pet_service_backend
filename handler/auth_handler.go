@@ -56,6 +56,8 @@ func Register(queries *db.Queries) fiber.Handler {
 			return c.Status(fiber.StatusBadRequest).SendString(fmt.Sprintf("Validation error: %s", err))
 		}
 
+		fmt.Println("Incoming body:", string(c.Body()))
+
 		if req.Password == "" {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"message": "Please enter your password",
@@ -115,6 +117,8 @@ func Login(queries *db.Queries) fiber.Handler {
 			})
 		}
 
+		fmt.Println("body request", string(c.Body()))
+
 		if err := utils.Validate(req); err != nil {
 			return c.Status(fiber.StatusBadRequest).SendString(fmt.Sprintf("Validation error: %s", err))
 		}
@@ -165,6 +169,24 @@ func Login(queries *db.Queries) fiber.Handler {
 			IsCustomer: user.Iscustomer,
 			IsProvider: user.Isserviceprovider,
 			IsAdmin:    user.Isadmin,
+		})
+	}
+}
+
+func Logout(queries *db.Queries) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+
+		c.Cookie(&fiber.Cookie{
+			Name:     "jwt",
+			Value:    "",
+			Expires:  time.Unix(0, 0),
+			HTTPOnly: true,
+			Secure:   false,
+			SameSite: fiber.CookieSameSiteStrictMode,
+		})
+
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"message": "Logged out successfully",
 		})
 	}
 }
