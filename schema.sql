@@ -21,6 +21,15 @@ CREATE TABLE public.services (
     pet_massage BOOLEAN NOT NULL DEFAULT false
 );
 
+ALTER TABLE public.services
+ADD COLUMN pet_sitting_price NUMERIC(10,2) DEFAULT 0,
+ADD COLUMN dog_walking_price NUMERIC(10,2) DEFAULT 0,
+ADD COLUMN pet_day_care_price NUMERIC(10,2) DEFAULT 0,
+ADD COLUMN pet_grooming_price NUMERIC(10,2) DEFAULT 0,
+ADD COLUMN pet_training_price NUMERIC(10,2) DEFAULT 0,
+ADD COLUMN pet_massage_price NUMERIC(10,2) DEFAULT 0;
+
+
 CREATE TABLE public.booked_service (
     id BIGSERIAL PRIMARY KEY,
     customer_id BIGINT NOT NULL REFERENCES public.users(id),

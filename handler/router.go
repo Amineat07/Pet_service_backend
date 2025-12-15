@@ -7,14 +7,22 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/gofiber/fiber/v2/middleware/logger"
 )
 
 func SetupRoute(app *fiber.App, con *pgxpool.Pool) {
+
 	queries := db.New(con)
+
+	app.Use(logger.New())
 
 	auth := app.Group("/auth")
 	auth.Post("/register", Register(queries))
 	auth.Post("/login", Login(queries))
+
+	logout := app.Group("/logout")
+	logout.Use(utils.JWTMiddleware([]byte(os.Getenv("JWT_SECRET")), queries))
+	logout.Post("/logout", Logout(queries))
 
 	service := app.Group("/service")
 	service.Use(utils.JWTMiddleware([]byte(os.Getenv("JWT_SECRET")), queries))
@@ -32,6 +40,10 @@ func SetupRoute(app *fiber.App, con *pgxpool.Pool) {
 
 	reservation := app.Group("/reservation")
 	reservation.Use(utils.JWTMiddleware([]byte(os.Getenv("JWT_SECRET")), queries))
-	reservation.Post("/", AddBooking(queries))
+	reservation.Post("/", AddBookingService(queries))
+	reservation.Patch("/:id", UpdateBookingService(queries))
+	// reservation.Get("/",GetBookings(queries))
+	// reservation.Get("/:id", GetSingleBooking(queries))
+	reservation.Delete("/:id", DeleteReservation(queries))
 
 }

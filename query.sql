@@ -67,9 +67,57 @@ WHERE provider_id =$1;
 
 -- name: MakeReservation :one
 INSERT INTO public.booked_service (customer_id, provider_id, service_type, start_time, end_time)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING customer_id, provider_id, service_type, start_time, end_time;
+SELECT $1, $2, $3, $4, $5
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM public.booked_service
+    WHERE customer_id = $1
+      AND service_type = $3
+      AND start_time < $5
+      AND end_time > $4
+)
+RETURNING id, customer_id, provider_id, service_type, start_time, end_time;
 
+-- name: GetProviderByID :one
+SELECT id
+FROM public.users
+WHERE id = $1 AND isServiceProvider=true;
+
+-- name: CountProviders :one
+SELECT COUNT(*) FROM public.users WHERE isServiceProvider = true;
+
+-- name: GetProviderService :one
+SELECT provider_id 
+FROM public.services
+WHERE provider_id = $1 AND pet_day_care= true OR pet_grooming = true OR pet_massage = true
+OR pet_sitting = true OR pet_training = true OR dog_walking = true;
+
+-- name: GetReservation :one
+SELECT * FROM public.booked_service WHERE id = $1;
+
+-- name: CheckReservationByCustomer :one
+SELECT * FROM public.booked_service WHERE customer_id= $1;
+
+-- name: GetReservationByIDAndCustomerID :one
+SELECT * FROM public.booked_service
+WHERE id = $1 AND provider_id = $2;
+
+-- name: GetServicesByProviderID :one
+SELECT *
+FROM public.services
+WHERE provider_id = $1;
+
+-- name: UpdateReservation :one
+UPDATE public.booked_service
+SET
+    service_type = COALESCE(NULLIF($2, ''), service_type),
+    start_time = COALESCE($3, start_time),
+    end_time = COALESCE($4, end_time)
+WHERE id = $1
+RETURNING *;
+
+-- name: DeleteReservation :exec
+DELETE FROM public.booked_service WHERE id=$1;
 
 
 
